@@ -1,0 +1,1029 @@
+
+<html>
+<script type='text/javascript' src='http://jquery.com/src/jquery-latest.js'></script>
+<link href='http://fonts.googleapis.com/css?family=Cambo|Passion+One|Open+Sans|Titan+One|Covered+By+Your+Grace|Droid+Serif' rel='stylesheet' type='text/css'>
+<script type='text/javascript'>
+/*
+* Slides, A Slideshow Plugin for jQuery
+* Intructions: http://slidesjs.com
+* By: Nathan Searles, http://nathansearles.com
+* Version: 1.1.9
+* Updated: September 5th, 2011
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+(function($){
+	$.fn.slides = function( option ) {
+		// override defaults with specified option
+		option = $.extend( {}, $.fn.slides.option, option );
+
+		return this.each(function(){
+			// wrap slides in control container, make sure slides are block level
+			$('.' + option.container, $(this)).children().wrapAll('<div class="slides_control"/>');
+			
+			var elem = $(this),
+				control = $('.slides_control',elem),
+				total = control.children().size(),
+				width = control.children().outerWidth(),
+				height = control.children().outerHeight(),
+				start = option.start - 1,
+				effect = option.effect.indexOf(',') < 0 ? option.effect : option.effect.replace(' ', '').split(',')[0],
+				paginationEffect = option.effect.indexOf(',') < 0 ? effect : option.effect.replace(' ', '').split(',')[1],
+				next = 0, prev = 0, number = 0, current = 0, loaded, active, clicked, position, direction, imageParent, pauseTimeout, playInterval;
+			
+			// is there only one slide?
+			if (total < 2) {
+				// Fade in .slides_container
+				$('.' + option.container, $(this)).fadeIn(option.fadeSpeed, option.fadeEasing, function(){
+					// let the script know everything is loaded
+					loaded = true;
+					// call the loaded funciton
+					option.slidesLoaded();
+				});
+				// Hide the next/previous buttons
+				$('.' + option.next + ', .' + option.prev).fadeOut(0);
+				return false;
+			}
+
+			// animate slides
+			function animate(direction, effect, clicked) {
+				if (!active && loaded) {
+					active = true;
+					// start of animation
+					option.animationStart(current + 1);
+					switch(direction) {
+						case 'next':
+							// change current slide to previous
+							prev = current;
+							// get next from current + 1
+							next = current + 1;
+							// if last slide, set next to first slide
+							next = total === next ? 0 : next;
+							// set position of next slide to right of previous
+							position = width*2;
+							// distance to slide based on width of slides
+							direction = -width*2;
+							// store new current slide
+							current = next;
+						break;
+						case 'prev':
+							// change current slide to previous
+							prev = current;
+							// get next from current - 1
+							next = current - 1;
+							// if first slide, set next to last slide
+							next = next === -1 ? total-1 : next;								
+							// set position of next slide to left of previous
+							position = 0;								
+							// distance to slide based on width of slides
+							direction = 0;		
+							// store new current slide
+							current = next;
+						break;
+						case 'pagination':
+							// get next from pagination item clicked, convert to number
+							next = parseInt(clicked,10);
+							// get previous from pagination item with class of current
+							prev = $('.' + option.paginationClass + ' li.'+ option.currentClass +' a', elem).attr('href').match('[^#/]+$');
+							// if next is greater then previous set position of next slide to right of previous
+							if (next > prev) {
+								position = width*2;
+								direction = -width*2;
+							} else {
+							// if next is less then previous set position of next slide to left of previous
+								position = 0;
+								direction = 0;
+							}
+							// store new current slide
+							current = next;
+						break;
+					}
+
+					// fade animation
+					if (effect === 'fade') {
+						// fade animation with crossfade
+						if (option.crossfade) {
+							// put hidden next above current
+							control.children(':eq('+ next +')', elem).css({
+								zIndex: 10
+							// fade in next
+							}).fadeIn(option.fadeSpeed, option.fadeEasing, function(){
+								if (option.autoHeight) {
+									// animate container to height of next
+									control.animate({
+										height: control.children(':eq('+ next +')', elem).outerHeight()
+									}, option.autoHeightSpeed, function(){
+										// hide previous
+										control.children(':eq('+ prev +')', elem).css({
+											display: 'none',
+											zIndex: 0
+										});								
+										// reset z index
+										control.children(':eq('+ next +')', elem).css({
+											zIndex: 0
+										});									
+										// end of animation
+										option.animationComplete(next + 1);
+										active = false;
+									});
+								} else {
+									// hide previous
+									control.children(':eq('+ prev +')', elem).css({
+										display: 'none',
+										zIndex: 0
+									});									
+									// reset zindex
+									control.children(':eq('+ next +')', elem).css({
+										zIndex: 0
+									});									
+									// end of animation
+									option.animationComplete(next + 1);
+									active = false;
+								}
+							});
+						} else {
+							// fade animation with no crossfade
+							control.children(':eq('+ prev +')', elem).fadeOut(option.fadeSpeed,  option.fadeEasing, function(){
+								// animate to new height
+								if (option.autoHeight) {
+									control.animate({
+										// animate container to height of next
+										height: control.children(':eq('+ next +')', elem).outerHeight()
+									}, option.autoHeightSpeed,
+									// fade in next slide
+									function(){
+										control.children(':eq('+ next +')', elem).fadeIn(option.fadeSpeed, option.fadeEasing);
+									});
+								} else {
+								// if fixed height
+									control.children(':eq('+ next +')', elem).fadeIn(option.fadeSpeed, option.fadeEasing, function(){
+										// fix font rendering in ie, lame
+										if($.browser.msie) {
+											$(this).get(0).style.removeAttribute('filter');
+										}
+									});
+								}									
+								// end of animation
+								option.animationComplete(next + 1);
+								active = false;
+							});
+						}
+					// slide animation
+					} else {
+						// move next slide to right of previous
+						control.children(':eq('+ next +')').css({
+							left: position,
+							display: 'block'
+						});
+						// animate to new height
+						if (option.autoHeight) {
+							control.animate({
+								left: direction,
+								height: control.children(':eq('+ next +')').outerHeight()
+							},option.slideSpeed, option.slideEasing, function(){
+								control.css({
+									left: -width
+								});
+								control.children(':eq('+ next +')').css({
+									left: width,
+									zIndex: 5
+								});
+								// reset previous slide
+								control.children(':eq('+ prev +')').css({
+									left: width,
+									display: 'none',
+									zIndex: 0
+								});
+								// end of animation
+								option.animationComplete(next + 1);
+								active = false;
+							});
+							// if fixed height
+							} else {
+								// animate control
+								control.animate({
+									left: direction
+								},option.slideSpeed, option.slideEasing, function(){
+									// after animation reset control position
+									control.css({
+										left: -width
+									});
+									// reset and show next
+									control.children(':eq('+ next +')').css({
+										left: width,
+										zIndex: 5
+									});
+									// reset previous slide
+									control.children(':eq('+ prev +')').css({
+										left: width,
+										display: 'none',
+										zIndex: 0
+									});
+									// end of animation
+									option.animationComplete(next + 1);
+									active = false;
+								});
+							}
+						}
+					// set current state for pagination
+					if (option.pagination) {
+						// remove current class from all
+						$('.'+ option.paginationClass +' li.' + option.currentClass, elem).removeClass(option.currentClass);
+						// add current class to next
+						$('.' + option.paginationClass + ' li:eq('+ next +')', elem).addClass(option.currentClass);
+					}
+				}
+			} // end animate function
+			
+			function stop() {
+				// clear interval from stored id
+				clearInterval(elem.data('interval'));
+			}
+
+			function pause() {
+				if (option.pause) {
+					// clear timeout and interval
+					clearTimeout(elem.data('pause'));
+					clearInterval(elem.data('interval'));
+					// pause slide show for option.pause amount
+					pauseTimeout = setTimeout(function() {
+						// clear pause timeout
+						clearTimeout(elem.data('pause'));
+						// start play interval after pause
+						playInterval = setInterval(	function(){
+							animate("next", effect);
+						},option.play);
+						// store play interval
+						elem.data('interval',playInterval);
+					},option.pause);
+					// store pause interval
+					elem.data('pause',pauseTimeout);
+				} else {
+					// if no pause, just stop
+					stop();
+				}
+			}
+				
+			// 2 or more slides required
+			if (total < 2) {
+				return;
+			}
+			
+			// error corection for start slide
+			if (start < 0) {
+				start = 0;
+			}
+			
+			if (start > total) {
+				start = total - 1;
+			}
+					
+			// change current based on start option number
+			if (option.start) {
+				current = start;
+			}
+			
+			// randomizes slide order
+			if (option.randomize) {
+				control.randomize();
+			}
+			
+			// make sure overflow is hidden, width is set
+			$('.' + option.container, elem).css({
+				overflow: 'hidden',
+				// fix for ie
+				position: 'relative'
+			});
+			
+			// set css for slides
+			control.children().css({
+				position: 'absolute',
+				top: 0, 
+				left: control.children().outerWidth(),
+				zIndex: 0,
+				display: 'none'
+			 });
+			
+			// set css for control div
+			control.css({
+				position: 'relative',
+				// size of control 3 x slide width
+				width: (width * 3),
+				// set height to slide height
+				height: height,
+				// center control to slide
+				left: -width
+			});
+			
+			// show slides
+			$('.' + option.container, elem).css({
+				display: 'block'
+			});
+
+			// if autoHeight true, get and set height of first slide
+			if (option.autoHeight) {
+				control.children().css({
+					height: 'auto'
+				});
+				control.animate({
+					height: control.children(':eq('+ start +')').outerHeight()
+				},option.autoHeightSpeed);
+			}
+			
+			// checks if image is loaded
+			if (option.preload && control.find('img:eq(' + start + ')').length) {
+				// adds preload image
+				$('.' + option.container, elem).css({
+					background: 'url(' + option.preloadImage + ') no-repeat 50% 50%'
+				});
+				
+				// gets image src, with cache buster
+				var img = control.find('img:eq(' + start + ')').attr('src') + '?' + (new Date()).getTime();
+				
+				// check if the image has a parent
+				if ($('img', elem).parent().attr('class') != 'slides_control') {
+					// If image has parent, get tag name
+					imageParent = control.children(':eq(0)')[0].tagName.toLowerCase();
+				} else {
+					// Image doesn't have parent, use image tag name
+					imageParent = control.find('img:eq(' + start + ')');
+				}
+
+				// checks if image is loaded
+				control.find('img:eq(' + start + ')').attr('src', img).load(function() {
+					// once image is fully loaded, fade in
+					control.find(imageParent + ':eq(' + start + ')').fadeIn(option.fadeSpeed, option.fadeEasing, function(){
+						$(this).css({
+							zIndex: 5
+						});
+						// removes preload image
+						$('.' + option.container, elem).css({
+							background: ''
+						});
+						// let the script know everything is loaded
+						loaded = true;
+						// call the loaded funciton
+						option.slidesLoaded();
+					});
+				});
+			} else {
+				// if no preloader fade in start slide
+				control.children(':eq(' + start + ')').fadeIn(option.fadeSpeed, option.fadeEasing, function(){
+					// let the script know everything is loaded
+					loaded = true;
+					// call the loaded funciton
+					option.slidesLoaded();
+				});
+			}
+			
+			// click slide for next
+			if (option.bigTarget) {
+				// set cursor to pointer
+				control.children().css({
+					cursor: 'pointer'
+				});
+				// click handler
+				control.children().click(function(){
+					// animate to next on slide click
+					animate('next', effect);
+					return false;
+				});									
+			}
+			
+			// pause on mouseover
+			if (option.hoverPause && option.play) {
+				control.bind('mouseover',function(){
+					// on mouse over stop
+					stop();
+				});
+				control.bind('mouseleave',function(){
+					// on mouse leave start pause timeout
+					pause();
+				});
+			}
+			
+			// generate next/prev buttons
+			if (option.generateNextPrev) {
+				$('.' + option.container, elem).after('<a href="#" class="'+ option.prev +'">Prev</a>');
+				$('.' + option.prev, elem).after('<a href="#" class="'+ option.next +'">Next</a>');
+			}
+			
+			// next button
+			$('.' + option.next ,elem).click(function(e){
+				e.preventDefault();
+				if (option.play) {
+					pause();
+				}
+				animate('next', effect);
+			});
+			
+			// previous button
+			$('.' + option.prev, elem).click(function(e){
+				e.preventDefault();
+				if (option.play) {
+					 pause();
+				}
+				animate('prev', effect);
+			});
+			
+			// generate pagination
+			if (option.generatePagination) {
+				// create unordered list
+				if (option.prependPagination) {
+					elem.prepend('<ul class='+ option.paginationClass +'></ul>');
+				} else {
+					elem.append('<ul class='+ option.paginationClass +'></ul>');
+				}
+				// for each slide create a list item and link
+				control.children().each(function(){
+					$('.' + option.paginationClass, elem).append('<li><a href="#'+ number +'">'+ (number+1) +'</a></li>');
+					number++;
+				});
+			} else {
+				// if pagination exists, add href w/ value of item number to links
+				$('.' + option.paginationClass + ' li a', elem).each(function(){
+					$(this).attr('href', '#' + number);
+					number++;
+				});
+			}
+			
+			// add current class to start slide pagination
+			$('.' + option.paginationClass + ' li:eq('+ start +')', elem).addClass(option.currentClass);
+			
+			// click handling 
+			$('.' + option.paginationClass + ' li a', elem ).click(function(){
+				// pause slideshow
+				if (option.play) {
+					 pause();
+				}
+				// get clicked, pass to animate function					
+				clicked = $(this).attr('href').match('[^#/]+$');
+				// if current slide equals clicked, don't do anything
+				if (current != clicked) {
+					animate('pagination', paginationEffect, clicked);
+				}
+				return false;
+			});
+			
+			// click handling 
+			$('a.link', elem).click(function(){
+				// pause slideshow
+				if (option.play) {
+					 pause();
+				}
+				// get clicked, pass to animate function					
+				clicked = $(this).attr('href').match('[^#/]+$') - 1;
+				// if current slide equals clicked, don't do anything
+				if (current != clicked) {
+					animate('pagination', paginationEffect, clicked);
+				}
+				return false;
+			});
+		
+			if (option.play) {
+				// set interval
+				playInterval = setInterval(function() {
+					animate('next', effect);
+				}, option.play);
+				// store interval id
+				elem.data('interval',playInterval);
+			}
+		});
+	};
+	
+	// default options
+	$.fn.slides.option = {
+		preload: false, // boolean, Set true to preload images in an image based slideshow
+		preloadImage: '/img/loading.gif', // string, Name and location of loading image for preloader. Default is "/img/loading.gif"
+		container: 'slides_container', // string, Class name for slides container. Default is "slides_container"
+		generateNextPrev: false, // boolean, Auto generate next/prev buttons
+		next: 'next', // string, Class name for next button
+		prev: 'prev', // string, Class name for previous button
+		pagination: true, // boolean, If you're not using pagination you can set to false, but don't have to
+		generatePagination: true, // boolean, Auto generate pagination
+		prependPagination: false, // boolean, prepend pagination
+		paginationClass: 'pagination', // string, Class name for pagination
+		currentClass: 'current', // string, Class name for current class
+		fadeSpeed: 350, // number, Set the speed of the fading animation in milliseconds
+		fadeEasing: '', // string, must load jQuery's easing plugin before http://gsgd.co.uk/sandbox/jquery/easing/
+		slideSpeed: 350, // number, Set the speed of the sliding animation in milliseconds
+		slideEasing: '', // string, must load jQuery's easing plugin before http://gsgd.co.uk/sandbox/jquery/easing/
+		start: 1, // number, Set the speed of the sliding animation in milliseconds
+		effect: 'slide', // string, '[next/prev], [pagination]', e.g. 'slide, fade' or simply 'fade' for both
+		crossfade: false, // boolean, Crossfade images in a image based slideshow
+		randomize: false, // boolean, Set to true to randomize slides
+		play: 0, // number, Autoplay slideshow, a positive number will set to true and be the time between slide animation in milliseconds
+		pause: 0, // number, Pause slideshow on click of next/prev or pagination. A positive number will set to true and be the time of pause in milliseconds
+		hoverPause: false, // boolean, Set to true and hovering over slideshow will pause it
+		autoHeight: false, // boolean, Set to true to auto adjust height
+		autoHeightSpeed: 350, // number, Set auto height animation time in milliseconds
+		bigTarget: false, // boolean, Set to true and the whole slide will link to next slide on click
+		animationStart: function(){}, // Function called at the start of animation
+		animationComplete: function(){}, // Function called at the completion of animation
+		slidesLoaded: function() {} // Function is called when slides is fully loaded
+	};
+	
+	// Randomize slide order on load
+	$.fn.randomize = function(callback) {
+		function randomizeOrder() { return(Math.round(Math.random())-0.5); }
+			return($(this).each(function() {
+			var $this = $(this);
+			var $children = $this.children();
+			var childCount = $children.length;
+			if (childCount > 1) {
+				$children.hide();
+				var indices = [];
+				for (i=0;i<childCount;i++) { indices[indices.length] = i; }
+				indices = indices.sort(randomizeOrder);
+				$.each(indices,function(j,k) { 
+					var $child = $children.eq(k);
+					var $clone = $child.clone(true);
+					$clone.show().appendTo($this);
+					if (callback !== undefined) {
+						callback($child, $clone);
+					}
+				$child.remove();
+			});
+			}
+		}));
+	};
+})(jQuery);
+</script>
+<style type="text/css" media="screen">
+  .slides_container {
+    width:490px;
+    height:500px;
+  }
+  .slides_container diiv {
+    width:600px;
+    height:800px;
+    display:block;
+  }
+  *
+{margin:0;border:0;}
+*:focus {outline: none;}
+body
+{background-color:#161616;}
+#ins
+{font-family: 'Covered By Your Grace', cursive;font-weight:900;font-size:20;background-image:url('load.gi');
+margin:20 0 0 0;padding:2 2 2 30;background-position:left;background-repeat:no-repeat;}
+#main
+{width:100%;height:100%;}
+#container
+{width:980px;margin-left:auto;margin-right:auto;background-color:}
+img#logo
+{margin:20 0 0 0;float:left;padding:}
+#top
+{height:70px;}
+#top p
+{color:green;margin:5 0 0 10px;}
+#top load
+{position:fixed;top:7%;right:69%;}
+#top span
+{color:#0F4A9A;float:left;}
+a#tbutton , a#obutton
+{font-family: 'Droid Serif', serif;font-size:12;float:left;margin:27 3px !important;background-color:rgba(216,223,234,0.1);color:rgba(26,133,234,0.8);cursor:pointer;border-radius:4px;padding:1 5;}
+#tbutton:hover ,#obutton:hover
+{background-color:rgba(216,223,234,0.2);color:rgba(26,133,234,1);}
+#all{margin:29 5 0 85px;font-family: 'Droid Serif', serif;font-size:11;}
+input 
+{font-family: 'Droid Serif', serif;font-size:13;float:left;height:30px;border-radius:10px;border:3px solid rgba(76,76,76,0.4);padding:6px;margin:20 0 20 10;}
+input:focus
+{height:30px;border:3px solid black;border-radius:10px;padding:6px;border:3px solid rgba(76,76,76,0.9);}
+#center
+{background-color:black;overflow:hidden;border-radius:10;padding-top:10px;}
+a:link
+{text-decoration:none;color:rgba(216,223,234,0.8);}
+a:hover
+{text-decoration:none;color:white;}
+a:visited
+{text-decoration:none;color:white;}
+.youtube-player
+{position:fixed;top:100px;right:25%;background-image:url('close.png');background-position:right top;background-repeat:no-repeat;padding:28;}
+#bottom
+{margin-top:70px;color:white;font-family: 'Droid Serif', serif;font-size:16;}
+#usage
+{float:left;}
+#share
+{float:right;padding:0 20 20 0;max-width:220px;}
+#share iframe
+{margin-top:10px;min-wdth:80px;}
+#usage a
+{color:#98C22A;opacity:0.7;}
+#usage a:hover 
+{opacity:1;}
+
+.movie
+{width:480px;height:290px;padding-top:20px;padding-left:10px;padding-right:px;float:left;}
+.movie_slide
+{width:490px;height:550px;padding:10 20 10 20;margin:10 80;}
+.MegaPoster
+{height:400px;width:270px;float:top;cursor:pointer;}
+.MegaName
+{font-size:25px;font-family:'Passion One', cursive;color:#0099FF;float:bottom;align:center;min-width:270;max-width:270;text-align:center;}
+#slides, #slides_two
+{float:left;}
+#slides .prev 
+{position:relative;left:69;top:-300;font-family: 'Titan One', cursive;font-size:30;}
+#slides .next
+{position:relative;left:375;top:-300;font-family: 'Titan One', cursive;font-size:30;}
+#slides_two .prev
+{position:relative;left:69;top:-300;font-family: 'Titan One', cursive;font-size:30;}
+#slides_two .next
+{position:relative;left:375;top:-300;font-family: 'Titan One', cursive;font-size:30;}
+.prev , .next
+{color:rgba(216,223,234,0.2) !important;}
+.prev:hover , .next:hover
+{color:white !important;}
+#info
+{color:#98C22A;}
+#info1 , #info2
+{display:inline-block;min-width:486px;text-align:center;margin:-60 0 0 0;}
+#watch
+{position:relative;left:-265;bottom:5;cursor:pointer;}
+#watch img
+{width:28;opacity:0.7;}
+#play
+{width:23;position:relative;top:-25;left:5;opacity:0.6;}
+#play:hover
+{opacity:1;}
+#watch img:hover
+{opacity:1;}
+.pagination {
+	margin:0 20 -0 130  ;text-align:center;
+	width:300px;position:absolute;top:570;
+}
+
+.pagination li {
+	float:left;
+	margin:0 1px;
+	list-style:none;
+}
+
+.pagination li a {
+	display:block;
+	width:12px;
+	height:0;
+	padding-top:12px;
+	background-image:url(pagination.png);
+	background-position:0 0;
+	float:left;
+	overflow:hidden;
+}
+
+.pagination li.current a {
+	background-position:0 -12px;
+}
+#watch
+{background-image:close.png;}
+.pagination li 
+{float:left;margin:0 1px;}
+#toggle
+{display:inline;color:red;}
+.left
+{width:190px;height:290px;float:left;color:blue;cursor:pointer;}
+.left:hover
+{color:red;}
+.right
+{min-width:290px;height:290px;float:right;}
+.name
+{font-size:25px;font-family:'Passion One', cursive;color:#0099FF;max-width:290px;min-height:100;max-height:110px;overflow:auto;}
+.name2
+{font-size:25px;font-family:'Passion One', cursive;color:#0099FF;max-width:290px;}
+.generes
+{font-style:italic;overflow:auto;max-width:290px;color:white;min-height:80px;max-height:100px;}
+.generes img
+{height:12%;display:inline;float:left;margin-right:10px}
+.rating 
+{color:FCA044;font-size:40;font-family:Open Sans', sans-serif;font-weight:700;}
+.date
+{margin-top:20;color:white;font-style:italic;font-size:18;}
+.rating img
+{height:15%;float:left;margin-right:10px}
+.rating span
+{font-size:20px;color:FCA044;}
+.poster{width:180px;height:266px;}
+
+</style>
+<script type="text/javascript">
+var ject;
+var i;var a;
+function fetch(query,opt){var ur;var rtKey = "f278acux2dr8vmmueege9bfv";
+	  urt = 'http://api.rottentomatoes.com/api/public/v1.0/lists/movies/upcoming.json?page_limit=15&page=1&country=us&apikey='+rtKey+'&callback=?'; 
+	  url = 'http://api.rottentomatoes.com/api/public/v1.0/movies.json?apikey='+rtKey+'&q='+query+'&callback=?';
+	  uro = 'http://api.rottentomatoes.com/api/public/v1.0/lists/movies/opening.json?page_limit=15&page=1&country=us&apikey=f278acux2dr8vmmueege9bfv&callback=?';
+	  if (opt==1 && query.replace(/\s/g,"") != "")
+	  {ur = url;}
+	  else if (opt==1 && query.replace(/\s/g,"") == "")
+	  {ur = uro;}
+	  else if (opt==4)
+	  {ur = uro;}
+	  else if (opt==5)
+	  {ur = urt;}
+	  else if (opt==2){ur = urt;} else {ur = uro;}
+	  $.getJSON(ur, function(result,t,xhr){ 
+			 if (t=='success'){ 
+				ject = result;
+				if (ject.total<=10){ i = ject.total; }
+				else {i = 10;}
+				//For queries
+				var ele;
+				if (opt==1 || opt==4 || opt==5){
+					for (j=0;j<i;j++){
+						if (opt==1){
+						ele = movieElement(j,ject.movies[j].title,ject.movies[j].year,ject.movies[j].posters.detailed,ject.movies[j].ratings.audience_score,ject.movies[j].critics_consensus,ject.movies[j].links.alternate);
+						}
+						if (opt==4 || opt==5){
+							ele = movieElement2(j,ject.movies[j].title,ject.movies[j].year,ject.movies[j].posters.detailed,ject.movies[j].ratings.audience_score,ject.movies[j].critics_consensus,ject.movies[j].links.alternate,ject.movies[j].release_dates.theater);
+						}						
+						if($('.movie#'+j).length==0){
+						$("#center").append(ele);				
+						}
+						else{
+						$('.movie#'+j).replaceWith(ele);
+						}						
+																		
+					}	
+				}
+				//For New Trailers
+				else if (opt==2){					
+					$('#center').append('<div id="slides_two" class="slides_opn"><div class="slides_container"></div></div>');
+					for (j=0;j<i;j++){
+						$("#slides_two .slides_container").append(slideElem(j,ject.movies[j].title,ject.movies[j].year,ject.movies[j].posters.original,ject.movies[j].ratings.audience_score,ject.movies[j].critics_consensus,ject.movies[j].links.alternate,2));
+					}
+				}
+				else{
+					$('#center').append('<div id="slides" class="slides_tra"><div class="slides_container"></div></div>');
+					for (j=0;j<i;j++){
+						$("#slides .slides_container").append(slideElem(j,ject.movies[j].title,ject.movies[j].year,ject.movies[j].posters.original,ject.movies[j].ratings.audience_score,ject.movies[j].critics_consensus,ject.movies[j].links.alternate,3));
+					}
+				}
+				//initialize slides
+				if (opt ==3){
+							$(function(){
+							// Set starting slide to 1
+							var startSlide = 1;
+							// Get slide number if it exists
+							// Initialize Slides
+							$('#slides').slides({
+								effect: 'fade',
+								preload: false,
+								preloadImage: 'img/load.gif',
+								fadeSpeed:700,
+								generateNextPrev: true,
+								play: 6000,
+								pause: 2500,
+								hoverPause: true,
+								// Get the starting slide
+								start: startSlide,
+								
+							}); $('.prev').html("<");$('.next').html(">");
+						}); 
+						
+				}
+				if (opt ==2){
+							$(function(){
+							// Set starting slide to 1
+							var startSlide = 1;
+							// Get slide number if it exists
+							// Initialize Slides
+							$('#slides_two').slides({
+								fadespeed:700,
+								effect: 'fade',
+								preload: false,
+								generateNextPrev: true,
+								preloadImage: 'img/load.gif',
+								play: 6000,
+								pause: 2500,
+								hoverPause: true,
+								// Get the starting slide
+								start: startSlide,
+								
+							});$('.prev').html("<");$('.next').html(">");
+						});
+						
+				}
+			$('#ins').css('background','');}
+		     else{
+				alert('check ur net connection'); return false;}
+		});
+}
+var fb;
+function getFB(){ b = 0;
+				for (k=0;k<i;k++){ a = k;
+				    $.ajax({url:"https://graph.facebook.com/search?q="+ject.movies[k].title+"&type=page",async:false,success:function(){alert('as');
+					if (re.data.length){
+					    var id = 0; jet=re;
+					    for (m=0;m<re.data.length;m++){
+						if(re.data[m].category=='Movie'){id=re.data[m].id;break;}
+					    }
+					    if(id!=0){
+						urll="https://graph.facebook.com/"+id;
+						$.ajax({url:urll,async:false,success:function(res){ alert(k);
+							$('#'+a).append('<p color="red">Likes '+res.likes+'</p>'); 
+						}});
+					    }else alert('no');
+					}	
+					}});
+				}
+
+}
+function act(opt){ 
+    $('#ins').css('background','url(load.gif) no-repeat left');
+	//$('.movie').remove();
+	$('#slides').remove();
+	$('#slides_two').remove();
+	if(opt==4)
+	{fetch('as',4);return}
+	if(opt==5)
+	{fetch('as',5);return}
+	fetch($('input').val(),1);
+}
+
+function movieElement(num,title,year,posterSrc,rating,cons,link){ 
+	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
+	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
+	if (cons){
+	string = string + "</a></div><div class='generes'><img src='critic.png'></img><p>\""+cons+"\"</p>";}
+	else {string = string + "</a></div><div class='generes'>";}
+	string = string + "</div><div class='rating' id='r"+num+"'><img src='audi.png'></img><p>" + rating + "%</p><span>rated it 10</span></div>";
+	string = string +"</div></div>";
+	return string;
+}
+function movieElement2(num,title,year,posterSrc,rating,cons,link,dt){ 
+	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
+	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name2'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
+	string = string + "</a></div>";
+	string = string + "<div class='date' id='r"+num+"'>"+getDate(dt)[0]+" "+getDate(dt)[1]+"</div></div></div>";
+	return string;
+}
+function fblike(){
+	for (k=0;k<10;k++){
+		tit = $('#'+k).children('.right').children('.name').text();
+		title = tit.substring(0,tit.length-6);
+		hr = "http://www.facebook.com/pages/"+getID(title);
+		ele = '<div class="fb-like" data-href="'+hr+'" data-send="false" data-layout="button_count" data-width="90" data-show-faces="false" data-colorscheme="dark"></div>';
+		$('#r'+k).append(ele);
+	}
+}
+function getID(title){ 
+					var idd = " ";
+				    $.ajax({url:"https://graph.facebook.com/search?q="+title+"&type=page",async:false,dataType:'json',success:function(re,st,hr){
+					if (re.data.length){
+					    var id = 0; jet=re;
+					    for (m=0;m<re.data.length;m++){
+						if(re.data[m].category=='Movie'){idd = re.data[m].name+"/"+re.data[m].id; return idd;}
+					    }
+					}	
+					}});return idd;
+}
+function getDate(dt){
+var month=new Array(12);
+var ar = dt.split('-')
+month[0]="January";
+month[1]="February";
+month[2]="March";
+month[3]="April";
+month[4]="May";
+month[5]="June";
+month[6]="July";
+month[7]="August";
+month[8]="September";
+month[9]="October";
+month[10]="November";
+month[11]="December";
+	var mont = parseInt(ar[1]);
+	var dat = parseInt(ar[2]);
+	 return [month[mont-1],dat];
+}
+function slideElem(num,title,year,posterSrc,rating,cons,link,opt){ 
+	string = "<div class='movie_slide' id='"+num+"'><div class='mega'><img class='MegaPoster' title='Watch Trailer' onClick=\"trailer('"+title+"',"+opt+")\" src='";
+	string = string + posterSrc + "'><span id='watch'><img src='play.png'></img></span></img></div><div class='MegaName'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
+	string = string + "</a></div></div>";
+	return string;
+}
+
+fetch('as',3);
+setTimeout("fetch('as',2)",3000);
+elemn = "<div id='info'><div id='info1'>Releasing this week</div><div id='info2'>Newly added trailers</div></div>";
+setTimeout("$('#center').append(elemn)",6000);
+$('body').click(function(){$('.youtube-player').remove();
+$('.youtube-player').remove();});
+$('a#tButton').click(function(){
+        $(this).toggleClass("down");
+    });
+//setup before functions
+var typingTimer;                //timer identifier
+var doneTypingInterval = 3000;  //time in ms, 5 second for example
+
+//on keyup, start the countdown
+function actt(){ act();
+    typingTimer = setTimeout(doneTyping, doneTypingInterval);
+}
+
+//on keydown, clear the countdown 
+function dow(){
+    clearTimeout(typingTimer);
+}
+
+//user is "finished typing," do something
+function doneTyping () {
+fblike(); FB.XFBML.parse($('#4 rating').get(0));
+    //do something
+}
+function clos(){
+$('iframe').remove();
+}
+
+function trailer(name,opt){
+	if (opt==2 || opt==3){ $('#slides').remove();$('#slides_two').remove();}
+	if (opt==2){fetch('12',5);} if (opt==3){fetch('as',4);}
+	key = "AI39si4-SaFDoTFpuvJTSzB_3ZFo8QWvcQc6Lqzv9Gj-av7zTFtYhH0ZVmDsJZnTEskVVnYpoSgbEUxwW1uh29m7thU7eemqpg";
+	$.getJSON("https://gdata.youtube.com/feeds/api/videos?key="+key+"&q="+name+" trailer&max-results=10&alt=json&callback=?",function(resp,stat,xhr){
+		yt = resp; srce = yt.feed.entry[0].id.$t.split('/')[6];$('body').append(getIframe(srce));$('body').css('opacity','0.2');
+	});
+	
+}
+
+function getIframe(lin){
+	st = '<iframe onClick="clos()" class="youtube-player" type="text/html" width="640" height="385" src="http://www.youtube.com/embed/'+lin+'?autoplay=1" frameborder="0"></iframe>';
+	return st;
+}
+
+function clos(){
+$('.youtube-player').remove();
+$('.youtube-player').remove();
+$('body').css('opacity','1');
+}
+
+</script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-28500521-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="http://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+ <script type="text/javascript"> 
+ (function() { 
+     var li = document.createElement('script'); li.type = 'text/javascript'; li.async = true; 
+      li.src = 'https://platform.stumbleupon.com/1/widgets.js'; 
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(li, s); 
+ })(); 
+ </script>
+ <!-- Place this render call where appropriate -->
+<script type="text/javascript">
+  (function() {
+    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+    po.src = 'https://apis.google.com/js/plusone.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+  })();
+</script>
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "http://connect.facebook.net/en_US/all.js#xfbml=1&appId=151353544959736";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<head>
+<title>Search for Trailers and Ratings Instantly
+</title>
+</head>
+<div id='main'>
+	<div id='container'>
+		<div id='top'><a href='' target='_self'><img src="logo2.png" id='logo'></img></a><input onkeyup="act()"></input><span id='ins'>Trailers and Ratings Instantly</span><span id='all'>View All :</span>
+			<a id="tButton" onClick="act(5)">New Trailers</a><a id="oButton" onClick="act(4)">Opening This Week</a>
+		</div>
+		<div id='center'></div>
+		<div id='bottom'>
+			<div id='usage'>Created by: <a href="https://plus.google.com/107679312436589916137/about">Sravan Reddy</a></div>
+			<div id='share'>
+			     <div>Share it</div>
+				 <a href="https://twitter.com/share" class="twitter-share-button" data-url="www.instamovi.com" data-text="InstaMovi - Search movie ratings and trailers instantly" data-via="sravfeyn" data-hashtags="InstaMovi">Tweet</a>
+				<iframe src="http:////www.facebook.com/plugins/like.php?href=http%3A%2F%2Fwww.instamovi.com&amp;send=false&amp;layout=button_count&amp;width=100&amp;show_faces=false&amp;action=like&amp;colorscheme=light&amp;font&amp;height=21&amp;appId=151353544959736" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:100px; height:21px;" allowTransparency="true"></iframe>
+				<su:badge layout="3"></su:badge>
+				<g:plusone size="medium" annotation="inline" width="120" href="http://www.instamovi.com"></g:plusone>
+				</div>
+		</div>
+	</div>
+</div>
+</html>
