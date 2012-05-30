@@ -709,7 +709,7 @@ a:visited
 .date
 {margin-top:20;color:white;font-style:italic;font-size:18;}
 .rating img
-{height:15%;float:left;margin-right:10px}
+{float:left;margin-right:10px}
 .rating span
 {font-size:20px;color:FCA044;}
 .poster{width:180px;height:266px;}
@@ -856,7 +856,7 @@ function movieElement(num,title,year,posterSrc,rating,cons,link){
 	if (cons){
 	string = string + "</a></div><div class='generes'><img src='critic.png'></img><p>\""+cons+"\"</p>";}
 	else {string = string + "</a></div><div class='generes'>";}
-	string = string + "</div><div class='rating' id='r"+num+"'><img src='audi.png'></img><p>" + rating + "%</p><span>rated it 10</span></div>";
+	string = string + "</div><div class='rating' id='r"+num+"'><img src='rsz_audi.png'></img><p>" + rating + "%</p><span>rated it 10</span></div>";
 	string = string +"</div></div>";
 	return string;
 }
