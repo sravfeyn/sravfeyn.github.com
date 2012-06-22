@@ -1,4 +1,3 @@
-
 <html>
 <script type='text/javascript' src='http://jquery.com/src/jquery-latest.js'></script>
 <link href='http://fonts.googleapis.com/css?family=Cambo|Passion+One|Open+Sans|Titan+One|Covered+By+Your+Grace|Droid+Serif' rel='stylesheet' type='text/css'>
@@ -851,6 +850,7 @@ function act(opt){
 }
 
 function movieElement(num,title,year,posterSrc,rating,cons,link){ 
+	title = title.replace("'","\'");
 	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
 	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
 	if (cons){
@@ -861,6 +861,7 @@ function movieElement(num,title,year,posterSrc,rating,cons,link){
 	return string;
 }
 function movieElement2(num,title,year,posterSrc,rating,cons,link,dt){ 
+	title = title.replace("'","\'");
 	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
 	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name2'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
 	string = string + "</a></div>";
