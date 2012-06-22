@@ -850,8 +850,8 @@ function act(opt){
 }
 
 function movieElement(num,title,year,posterSrc,rating,cons,link){ 
-	title = title.replace("'","\\'");
-	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
+	newTitle = title.replace("'","\\'");
+	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+newTitle+"')\"><img class='poster' title='Watch Trailer' src='";
 	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
 	if (cons){
 	string = string + "</a></div><div class='generes'><img src='critic.png'></img><p>\""+cons+"\"</p>";}
@@ -861,8 +861,8 @@ function movieElement(num,title,year,posterSrc,rating,cons,link){
 	return string;
 }
 function movieElement2(num,title,year,posterSrc,rating,cons,link,dt){ 
-	title = title.replace("'","\\'");
-	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+title+"')\"><img class='poster' title='Watch Trailer' src='";
+	newTitle = title.replace("'","\\'");
+	string = "<div class='movie' id='"+num+"'><div class='left' onClick=\"trailer('"+newTitle+"')\"><img class='poster' title='Watch Trailer' src='";
 	string = string + posterSrc + "'><img src='play.png' id='play'></img></img></div><div class='right'><div class='name2'><a target='_black' href='"+link+"'>" + title+" ("+year+")";
 	string = string + "</a></div>";
 	string = string + "<div class='date' id='r"+num+"'>"+getDate(dt)[0]+" "+getDate(dt)[1]+"</div></div></div>";
