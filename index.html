@@ -913,8 +913,10 @@ function slideElem(num,title,year,posterSrc,rating,cons,link,opt){
 	string = string + "</a></div></div>";
 	return string;
 }
-
+if (location.hash.split("#").length==0)
 fetch('as',3);
+else
+fetch(location.hash.split("#")[1],1);
 setTimeout("fetch('as',2)",3000);
 elemn = "<div id='info'><div id='info1'>Releasing this week</div><div id='info2'>Newly added trailers</div></div>";
 setTimeout("$('#center').append(elemn)",6000);
