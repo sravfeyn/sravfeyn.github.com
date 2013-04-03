@@ -953,7 +953,7 @@ function trailer(name,opt){
 	if (opt==2){fetch('12',5);} if (opt==3){fetch('as',4);}
 	key = "AI39si4-SaFDoTFpuvJTSzB_3ZFo8QWvcQc6Lqzv9Gj-av7zTFtYhH0ZVmDsJZnTEskVVnYpoSgbEUxwW1uh29m7thU7eemqpg";
 	$.getJSON("https://gdata.youtube.com/feeds/api/videos?key="+key+"&q="+name+" trailer&max-results=10&alt=json&callback=?",function(resp,stat,xhr){
-		yt = resp; srce = yt.feed.entry[0].id.$t.split('/')[6];$('body').append(getIframe(srce));$('body').css('opacity','0.2');
+		yt = resp; srce = yt.feed.entry[0].id.$t.split('/')[6];$('body').append(getIframe(srce));
 	});
 	
 }
